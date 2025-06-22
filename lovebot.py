@@ -47,10 +47,16 @@ async def love_command(interaction: discord.Interaction, target: discord.User):
         canvas.paste(pfp1, (0, 0))
         canvas.paste(pfp2, (320, 0))
 
-        # ❤️ Heart image
-        heart = Image.new("RGBA", (64, 64))
+        # ❤️ Better heart shape using polygon and curves
+        heart = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
         draw_heart = ImageDraw.Draw(heart)
-        draw_heart.ellipse([0, 0, 64, 64], fill="red")
+
+        # Draw heart shape manually (polygon + pieslice)
+        draw_heart.pieslice([0, 0, 32, 32], 180, 360, fill="red")       # left bump
+        draw_heart.pieslice([32, 0, 64, 32], 180, 360, fill="red")      # right bump
+        draw_heart.polygon([(0, 16), (32, 64), (64, 16)], fill="red")   # bottom triangle
+
+        # Paste on canvas
         canvas.paste(heart, (256, 96), heart)
 
         # 💯 Draw love %
