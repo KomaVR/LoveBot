@@ -10,16 +10,14 @@ class LoveBot(discord.Client):
 
     async def setup_hook(self):
         self.tree.add_command(love_command)
-        await self.tree.sync()
-        print("✅ Slash commands synced")
+        await self.tree.sync()  # Global sync = needed for DM support
+        print("✅ Slash commands synced globally")
 
 bot = LoveBot()
 
 # 🎲 Rigged love %
 def rigged_love_score():
-    if random.random() < 0.1:
-        return random.randint(1, 30)  # 10% chance to be tragic
-    return random.randint(80, 100)  # 90% chance to be soulmates
+    return random.randint(1, 30) if random.random() < 0.1 else random.randint(80, 100)
 
 # 🖼️ Grab avatar from URL
 async def fetch_avatar(session, url):
@@ -30,47 +28,51 @@ async def fetch_avatar(session, url):
 
 # 💘 /love slash command
 @discord.app_commands.command(name="love", description="Calculate love % between you and another user")
-@app_commands.describe(target="Your one true love (or mistake)")
+@app_commands.describe(target="The lucky (or unlucky) person")
 async def love_command(interaction: discord.Interaction, target: discord.User):
-    await interaction.response.defer()
-
-    async with aiohttp.ClientSession() as session:
-        pfp1 = await fetch_avatar(session, interaction.user.display_avatar.url)
-        pfp2 = await fetch_avatar(session, target.display_avatar.url)
+    try:
+        await interaction.response.defer()
+        async with aiohttp.ClientSession() as session:
+            pfp1 = await fetch_avatar(session, interaction.user.display_avatar.url)
+            pfp2 = await fetch_avatar(session, target.display_avatar.url)
 
         if not pfp1 or not pfp2:
-            await interaction.followup.send("🚫 Failed to fetch avatars.")
+            await interaction.followup.send("🚫 Couldn't fetch avatars.")
             return
 
+        # 🧠 Resize & prepare
         pfp1 = pfp1.resize((256, 256))
         pfp2 = pfp2.resize((256, 256))
         canvas = Image.new("RGBA", (576, 256), (0, 0, 0, 0))
         canvas.paste(pfp1, (0, 0))
         canvas.paste(pfp2, (320, 0))
 
-        # ❤️ Draw heart
+        # ❤️ Heart image
         heart = Image.new("RGBA", (64, 64))
         draw_heart = ImageDraw.Draw(heart)
         draw_heart.ellipse([0, 0, 64, 64], fill="red")
         canvas.paste(heart, (256, 96), heart)
 
-        # 💯 Draw text
+        # 💯 Draw love %
         love_score = rigged_love_score()
         try:
             font = ImageFont.truetype("arial.ttf", 36)
         except:
             font = ImageFont.load_default()
+
         draw = ImageDraw.Draw(canvas)
         draw.text((288, 170), f"{love_score}%", font=font, fill="white", anchor="mm")
 
-        # 📤 Send image
+        # 📤 Send it
         with io.BytesIO() as image_binary:
             canvas.save(image_binary, "PNG")
             image_binary.seek(0)
             await interaction.followup.send(
-                content=f"💘 {interaction.user.mention} + {target.mention} = true love?",
+                content=f"💘 {interaction.user.mention} + {target.mention} = love level {love_score}%",
                 file=discord.File(fp=image_binary, filename="love.png")
             )
+    except Exception as e:
+        await interaction.followup.send(f"Something went wrong: {e}")
 
-# 🚀 Run using GitHub ENV
+# 🔐 Safe login
 bot.run(os.environ["DISCORD_TOKEN"])
